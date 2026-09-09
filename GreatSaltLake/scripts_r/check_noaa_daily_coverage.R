@@ -362,13 +362,19 @@ write_csv(
 # 11. Save the actual daily data
 # ---------------------------------------------------------
 
-daily_data <- bind_rows(
-  all_station_data
-)
+daily_data <- bind_rows(all_station_data)
+
+daily_data_wide <- daily_data %>%
+  select(ID, Date, Precipitation_mm) %>%
+  pivot_wider(
+    names_from = ID,
+    values_from = Precipitation_mm
+  ) %>%
+  arrange(Date)
 
 write_csv(
-  daily_data,
-  "raw_data/noaa_historical_daily_precipitation.csv"
+  daily_data_wide,
+  "raw_data/noaa_historical_daily_precipitation_wide.csv"
 )
 
 cat("\n\nFinished!\n")
