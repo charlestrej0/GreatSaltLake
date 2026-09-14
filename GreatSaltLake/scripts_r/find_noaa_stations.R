@@ -1,12 +1,12 @@
-# ============================================================
 # find_noaa_stations.R
 #
 # Find GHCN stations around the Great Salt Lake
-# ============================================================
+# =============================================
 
 library(readr)
 library(dplyr)
 library(stringr)
+library(here)
 
 
 # NOAA station inventory
@@ -31,9 +31,8 @@ stations <- tibble(
 )
 
 
-# ============================================================
 # Find Utah stations
-# ============================================================
+# ==================
 
 utah_stations <- stations %>%
   filter(State == "UT")
@@ -55,11 +54,19 @@ print(gsl_stations, n = 200)
 
 
 # Save the station list
+# =====================
+
+output_file <- here(
+  "raw_data",
+  "noaa_gsl_stations.csv"
+)
+
 write_csv(
   gsl_stations,
-  "C:/Users/charl/OneDrive/Documents/MathResearchThings/GreatSaltLake/raw_data/noaa_gsl_stations.csv"
+  output_file
 )
 
 
 cat("\nFinished!\n")
 cat("Found", nrow(gsl_stations), "stations.\n")
+cat("Saved to:", output_file, "\n")
