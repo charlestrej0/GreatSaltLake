@@ -1,28 +1,38 @@
+# check_noaa_precip_history.R
+#
+# Check historical precipitation records for GSL stations
+# =======================================================
+
 library(tidyverse)
+library(here)
 
-# ---------------------------------------------------------
-# 1. Load your GSL station list
-# ---------------------------------------------------------
 
-library(tidyverse)
+# 1. Load GSL station list
+# =============================
 
-# Set project folder
-setwd("C:/Users/charl/OneDrive/Documents/MathResearchThings/GreatSaltLake")
+stations_file <- here(
+  "raw_data",
+  "noaa_gsl_stations.csv"
+)
 
-# Load your GSL station list
-stations_file <- "raw_data/noaa_gsl_stations.csv"
+stations <- read_csv(
+  stations_file,
+  show_col_types = FALSE
+)
 
-stations <- read_csv(stations_file, show_col_types = FALSE)
 
-# ---------------------------------------------------------
 # 2. Download NOAA GHCN station inventory
-# ---------------------------------------------------------
+# =======================================
 
-inventory_url <- "https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-inventory.txt"
+inventory_url <- paste0(
+  "https://www.ncei.noaa.gov/pub/data/ghcn/daily/",
+  "ghcnd-inventory.txt"
+)
 
 inventory_lines <- read_lines(inventory_url)
 
-# ---------------------------------------------------------
+
+# ----------------------------------
 # 3. Parse the fixed-width inventory
 #
 # GHCN inventory format:
@@ -32,7 +42,7 @@ inventory_lines <- read_lines(inventory_url)
 # Element     = columns 32-35
 # First year  = columns 37-40
 # Last year   = columns 42-45
-# ---------------------------------------------------------
+# ----------------------------------
 
 inventory <- tibble(
   ID = str_trim(str_sub(inventory_lines, 1, 11)),
@@ -43,9 +53,9 @@ inventory <- tibble(
   Last_Year = as.integer(str_sub(inventory_lines, 42, 45))
 )
 
-# ---------------------------------------------------------
+
 # 4. Keep only precipitation records
-# ---------------------------------------------------------
+# ==================================
 
 precip_history <- inventory %>%
   filter(
@@ -53,23 +63,35 @@ precip_history <- inventory %>%
     Element == "PRCP"
   )
 
-# ---------------------------------------------------------
+
 # 5. Attach station names
-# ---------------------------------------------------------
+# =======================
 
 precip_history <- stations %>%
-  select(ID, Name, Latitude, Longitude, Elevation_m, State) %>%
+  select(
+    ID,
+    Name,
+    Latitude,
+    Longitude,
+    Elevation_m,
+    State
+  ) %>%
   left_join(
     precip_history %>%
-      select(ID, Element, First_Year, Last_Year),
+      select(
+        ID,
+        Element,
+        First_Year,
+        Last_Year
+      ),
     by = "ID"
   ) %>%
   filter(!is.na(First_Year)) %>%
   arrange(First_Year)
 
-# ---------------------------------------------------------
+
 # 6. Display oldest precipitation stations
-# ---------------------------------------------------------
+# ========================================
 
 print(
   precip_history %>%
@@ -85,9 +107,9 @@ print(
   n = 50
 )
 
-# ---------------------------------------------------------
+
 # 7. Show stations with records beginning before 1900
-# ---------------------------------------------------------
+# ===================================================
 
 cat("\n========================================\n")
 cat("Stations with PRCP beginning before 1900\n")
@@ -99,11 +121,18 @@ old_stations <- precip_history %>%
 
 print(old_stations, n = 100)
 
-# ---------------------------------------------------------
+
 # 8. Save results
-# ---------------------------------------------------------
+# ===============
+
+output_file <- here(
+  "raw_data",
+  "noaa_precipitation_station_history.csv"
+)
 
 write_csv(
   precip_history,
-  "raw_data/noaa_precipitation_station_history.csv"
+  output_file
 )
+
+cat("\nSaved to:", output_file, "\n")
