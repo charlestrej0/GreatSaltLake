@@ -95,20 +95,23 @@ river_cols <- river_names
 master <- master |>
   mutate(
     `Total Inflow (ft^3/s)` =
-      rowSums(select(., all_of(river_cols)), na.rm = TRUE),
+      rowSums(across(all_of(river_cols)), na.rm = TRUE),
     
     `Number of Gauges Reporting` =
-      rowSums(!is.na(select(., all_of(river_cols))))
+      rowSums(!is.na(across(all_of(river_cols))))
   )
 
 
 # Save
 #-----
 
+output_file <- here("raw_data", "usgs_streamflow.csv")
+
 write_csv(
   master,
-  "C:/Users/charl/OneDrive/Documents/MathResearchThings/GreatSaltLake/raw_data/usgs_streamflow.csv"
+  output_file
 )
 
 cat("\nFinished downloading streamflow data!\n")
+cat("Saved to:", output_file, "\n")
 print(head(master))
