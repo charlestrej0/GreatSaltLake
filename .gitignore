@@ -1,0 +1,11 @@
+# Ignore everything in the user folder
+/*
+
+# Keep the GitHub repository files
+!/.gitignore
+!/LICENSE
+!/README.md
+
+# Keep the Great Salt Lake project
+!/GreatSaltLake/
+!/GreatSaltLake/**
