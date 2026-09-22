@@ -1,22 +1,19 @@
-library(tidyverse)
-library(lubridate)
-
 # =========================================================
 # GREAT SALT LAKE NOAA DAILY PRECIPITATION COVERAGE
 # =========================================================
 
-# ---------------------------------------------------------
-# 1. Set project directory
-# ---------------------------------------------------------
-
-setwd("C:/Users/charl/OneDrive/Documents/MathResearchThings/GreatSaltLake")
+library(tidyverse)
+library(lubridate)
+library(here)
 
 
-# ---------------------------------------------------------
-# 2. Load station history
-# ---------------------------------------------------------
+# 1. Load station history
+# =======================
 
-history_file <- "raw_data/noaa_precipitation_station_history.csv"
+history_file <- here(
+  "raw_data",
+  "noaa_precipitation_station_history.csv"
+)
 
 station_history <- read_csv(
   history_file,
@@ -24,12 +21,11 @@ station_history <- read_csv(
 )
 
 
-# ---------------------------------------------------------
-# 3. Select historical stations
+# 2. Select historical stations
 #
 # For now, look at stations beginning before 1910.
 # We can change this later.
-# ---------------------------------------------------------
+# ================================================
 
 candidate_stations <- station_history %>%
   filter(First_Year <= 1910) %>%
@@ -38,9 +34,8 @@ candidate_stations <- station_history %>%
 print(candidate_stations, n = 100)
 
 
-# ---------------------------------------------------------
-# 4. Function to download and parse a NOAA .dly file
-# ---------------------------------------------------------
+# 3. Function to download and parse a NOAA .dly file
+# ==================================================
 
 read_noaa_dly <- function(station_id) {
   
@@ -123,7 +118,7 @@ read_noaa_dly <- function(station_id) {
   for (i in seq_along(lines)) {
     
     # Number of days in this month
-    days_in_month <- days_in_month(
+    days_in_month <- lubridate::days_in_month(
       as.Date(
         paste0(
           year[i],
@@ -178,9 +173,8 @@ read_noaa_dly <- function(station_id) {
 }
 
 
-# ---------------------------------------------------------
-# 5. Calculate coverage statistics
-# ---------------------------------------------------------
+# 4. Calculate coverage statistics
+# ================================
 
 calculate_coverage <- function(data, station_id) {
   
@@ -252,9 +246,8 @@ calculate_coverage <- function(data, station_id) {
 }
 
 
-# ---------------------------------------------------------
-# 6. Download all candidate stations
-# ---------------------------------------------------------
+# 5. Download all candidate stations
+# ==================================
 
 all_station_data <- list()
 
@@ -293,18 +286,16 @@ for (i in seq_len(nrow(candidate_stations))) {
 }
 
 
-# ---------------------------------------------------------
-# 7. Combine coverage results
-# ---------------------------------------------------------
+# 6. Combine coverage results
+# ===========================
 
 coverage <- bind_rows(
   coverage_results
 )
 
 
-# ---------------------------------------------------------
-# 8. Add station information
-# ---------------------------------------------------------
+# 7. Add station information
+# ==========================
 
 coverage <- coverage %>%
   left_join(
@@ -323,9 +314,8 @@ coverage <- coverage %>%
   arrange(desc(Coverage_Percent))
 
 
-# ---------------------------------------------------------
-# 9. Print results
-# ---------------------------------------------------------
+# 8. Print results
+# ================
 
 cat("\n\n========================================\n")
 cat("NOAA DAILY PRECIPITATION COVERAGE\n")
@@ -348,38 +338,55 @@ print(
 )
 
 
-# ---------------------------------------------------------
-# 10. Save results
-# ---------------------------------------------------------
+# 9. Save coverage results
+# ========================
+
+coverage_file <- here(
+  "raw_data",
+  "noaa_daily_coverage.csv"
+)
 
 write_csv(
   coverage,
-  "raw_data/noaa_daily_coverage.csv"
+  coverage_file
 )
 
 
-# ---------------------------------------------------------
-# 11. Save the actual daily data
-# ---------------------------------------------------------
+# 10. Save the actual daily precipitation data
+# ============================================
 
 daily_data <- bind_rows(all_station_data)
 
 daily_data_wide <- daily_data %>%
-  select(ID, Date, Precipitation_mm) %>%
+  select(
+    ID,
+    Date,
+    Precipitation_mm
+  ) %>%
   pivot_wider(
     names_from = ID,
     values_from = Precipitation_mm
   ) %>%
   arrange(Date)
 
-write_csv(
-  daily_data_wide,
-  "raw_data/noaa_historical_daily_precipitation_wide.csv"
+daily_file <- here(
+  "raw_data",
+  "noaa_historical_daily_precipitation_wide.csv"
 )
 
+write_csv(
+  daily_data_wide,
+  daily_file
+)
+
+
+# 11. Finished
+# ============
+
 cat("\n\nFinished!\n")
+
 cat("Coverage saved to:\n")
-cat("raw_data/noaa_daily_coverage.csv\n\n")
+cat(coverage_file, "\n\n")
 
 cat("Daily precipitation saved to:\n")
-cat("raw_data/noaa_historical_daily_precipitation.csv\n")
+cat(daily_file, "\n")
