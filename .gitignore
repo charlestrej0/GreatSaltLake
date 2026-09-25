@@ -9,3 +9,5 @@
 # Keep the Great Salt Lake project
 !/GreatSaltLake/
 !/GreatSaltLake/**
+.Rproj.user
+.Rproj.user
