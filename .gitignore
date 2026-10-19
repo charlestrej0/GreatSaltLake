@@ -5,6 +5,7 @@
 !/.gitignore
 !/LICENSE
 !/README.md
+!/requirements.txt
 
 # Keep the Great Salt Lake project
 !/GreatSaltLake/
