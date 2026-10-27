@@ -1,0 +1,12 @@
+Parameter,Estimate
+intercept_ft_per_month,0.1480650010214444
+inflow_effect,0.0043989444580333475
+precip_effect,0.25381425137330393
+season_sin_effect,0.26607945224131646
+season_cos_effect,-0.036178146520408946
+spline_coefficient_1,-4.648736884062222
+spline_coefficient_2,0.4397927356440111
+spline_coefficient_3,-0.3499553134334132
+spline_coefficient_4,0.06164524757937712
+spline_coefficient_5,-0.529239868985075
+spline_coefficient_6,0.014787085788247726
