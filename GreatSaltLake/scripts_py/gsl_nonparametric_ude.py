@@ -25,7 +25,7 @@ if not DATA_FILE.exists():
     raise FileNotFoundError(f"CSV not found: {DATA_FILE}\nEdit DATA_FILE at the top.")
 df = pd.read_csv(DATA_FILE)
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-columns = ["Date", "Lake_Elevation_Mean_ft", "Total_Inflow_Mean_ft3_s", "NOAA_Station_Mean_Precip_mm"]
+columns = ["Date", "Lake_Elevation_Mean_ft", "Total_Inflow_Mean_ft3_s", "NOAA_Station_Mean_Precip_in"]
 missing = [c for c in columns if c not in df.columns]
 if missing:
     raise ValueError(f"Missing columns: {missing}")
@@ -43,7 +43,7 @@ def standardize(series):
     return (series - mean) / std, mean, std
 
 data["Inflow_z"], inflow_mean, inflow_std = standardize(data["Total_Inflow_Mean_ft3_s"])
-data["Precip_z"], precip_mean, precip_std = standardize(data["NOAA_Station_Mean_Precip_mm"])
+data["Precip_z"], precip_mean, precip_std = standardize(data["NOAA_Station_Mean_Precip_in"])
 data["Elevation_z"], elevation_mean, elevation_std = standardize(data["Lake_Elevation_Mean_ft"])
 month = data["Date"].dt.month.to_numpy()
 data["Season_sin"] = np.sin(2 * np.pi * month / 12)
