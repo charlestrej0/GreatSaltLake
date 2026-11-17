@@ -39,6 +39,12 @@ STATION_FILE = RAW_DATA_FOLDER / "noaa_gsl_stations.csv"
 OUTPUT_FILE = RAW_DATA_FOLDER / "noaa_historical_daily_weather.csv"
 REPORT_FILE = RAW_DATA_FOLDER / "noaa_weather_download_report.csv"
 
+# Each station-year is cached after processing, so later runs only
+# re-download recent years (NOAA keeps revising the latest data).
+CACHE_FOLDER = RAW_DATA_FOLDER / "noaa_weather_cache"
+CACHE_STATUS_FILE = CACHE_FOLDER / "_status.csv"
+REFRESH_RECENT_YEARS = 2  # always re-download the current and previous year
+
 GHCNH_URL = "https://www.ncei.noaa.gov/oa/global-historical-climatology-network/hourly"
 GHCNH_STATION_LIST_URL = f"{GHCNH_URL}/doc/ghcnh-station-list.csv"
 
@@ -142,9 +148,57 @@ def download_station_year(session, station_id, year, temp_folder):
 
 
 
+# 3b. Cache helpers
+def load_cache_status():
+    """Return {(station_id, year): status} for station-years already processed."""
+    if not CACHE_STATUS_FILE.exists():
+        return {}
+    cached = pd.read_csv(CACHE_STATUS_FILE)
+    return {
+        (row.ID, int(row.Year)): row.Status
+        for row in cached.itertuples(index=False)
+    }
+
+
+def save_cache_status(cache_status):
+    CACHE_FOLDER.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {"ID": station_id, "Year": year, "Status": status}
+        for (station_id, year), status in sorted(cache_status.items())
+    ]
+    pd.DataFrame(rows).to_csv(CACHE_STATUS_FILE, index=False)
+
+
+def get_station_year(session, station_id, year, temp_folder, cache_status):
+    """Use the cached result for older years; download recent or new ones."""
+    cache_file = CACHE_FOLDER / f"{station_id}_{year}.csv"
+    is_recent = year > END_YEAR - REFRESH_RECENT_YEARS
+    status = cache_status.get((station_id, year))
+
+    if status is not None and not is_recent:
+        if status == "Data found" and cache_file.exists():
+            return pd.read_csv(cache_file), "Data found (cached)"
+        if status != "Data found":
+            return None, f"{status} (cached)"
+
+    daily, status = download_station_year(session, station_id, year, temp_folder)
+    time.sleep(REQUEST_DELAY_SECONDS)
+
+    # Network errors are not cached, so they are retried next run.
+    if not status.startswith("Request error"):
+        CACHE_FOLDER.mkdir(parents=True, exist_ok=True)
+        if daily is not None:
+            daily.to_csv(cache_file, index=False)
+        cache_status[(station_id, year)] = status
+
+    return daily, status
+
+
 # 4. Download and aggregate data immediately
 daily_results = []
 download_report = []
+cache_status = load_cache_status()
+print(f"Cached station-years: {len(cache_status)}")
 
 with requests.Session() as session:
     session.headers.update({"User-Agent": "GreatSaltLakeResearch/1.0"})
@@ -157,8 +211,8 @@ with requests.Session() as session:
             year_statuses = []
 
             for year in range(START_YEAR, END_YEAR + 1):
-                daily, status = download_station_year(
-                    session, station_id, year, temp_folder
+                daily, status = get_station_year(
+                    session, station_id, year, temp_folder, cache_status
                 )
                 year_statuses.append(f"{year}: {status}")
 
@@ -167,7 +221,8 @@ with requests.Session() as session:
                     station_days += len(daily)
                     successful_years += 1
 
-                time.sleep(REQUEST_DELAY_SECONDS)
+            # Save after each station so an interrupted run keeps its progress.
+            save_cache_status(cache_status)
 
             download_report.append({
                 "ID": station_id,

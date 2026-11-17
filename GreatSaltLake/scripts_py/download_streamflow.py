@@ -151,7 +151,7 @@ raw_data_folder = project_folder / "raw_data"
 raw_data_folder.mkdir(exist_ok=True)
 
 # Create the output file path
-output_file = raw_data_folder / "usgs_streamflow_py.csv"
+output_file = raw_data_folder / "usgs_streamflow.csv"
 
 # Save the data
 master.to_csv(

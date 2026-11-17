@@ -19,3 +19,6 @@
 # ERA5 download cache (large NetCDF files)
 /GreatSaltLake/raw_data/era5_cache/
 /GreatSaltLake/raw_data/gridmet_cache/
+/GreatSaltLake/raw_data/noaa_weather_cache/
+/GreatSaltLake/logs/
+/GreatSaltLake/scripts_py/__pycache__/
