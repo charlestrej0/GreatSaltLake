@@ -22,9 +22,17 @@ Options
     --include-static                   also re-download static data
                                        (lake hypsometry tables)
     --no-process                       download only; do not rebuild master
+    --require-branch R-Python          skip the run unless the repo is on
+                                       this branch (used by the weekly
+                                       scheduled task)
 
 Exit code is 1 if any step failed, so schedulers (Windows Task Scheduler,
-cron) can flag a bad run.
+cron) can flag a bad run. Every run, including skipped ones, adds one line
+to logs/run_history.log.
+
+Weekly schedule: a Windows Task Scheduler task named
+"Great Salt Lake weekly data update" runs this script with
+--require-branch R-Python every Monday at 7:00 AM.
 
 Typical run time after the first full download: a few minutes. The NOAA
 weather, ERA5 and gridMET scripts cache older data and only re-download
@@ -142,7 +150,23 @@ parser.add_argument("--only", nargs="+", choices=list(STEPS), help="run only the
 parser.add_argument("--skip", nargs="+", choices=list(STEPS), default=[], help="skip these steps")
 parser.add_argument("--include-static", action="store_true", help="also re-download static data")
 parser.add_argument("--no-process", action="store_true", help="do not rebuild the master table")
+parser.add_argument("--require-branch", help="only run when the repo is on this git branch")
 args = parser.parse_args()
+
+HISTORY_FILE = LOG_FOLDER / "run_history.log"
+
+
+def record_history(message):
+    """Append one line per run, so scheduled runs leave a trace even if skipped."""
+    LOG_FOLDER.mkdir(exist_ok=True)
+    with open(HISTORY_FILE, "a", encoding="utf-8") as history:
+        history.write(f"{datetime.now():%Y-%m-%d %H:%M:%S}  {message}\n")
+
+
+def stop_early(message):
+    print(message)
+    record_history(f"SKIPPED: {message}")
+    sys.exit(2)
 
 selected = []
 for name, (script, output, is_static) in STEPS.items():
@@ -161,13 +185,26 @@ for name, (script, output, is_static) in STEPS.items():
 # 4. Run
 # ------------------------------------------------------------
 
+# On another branch the scripts and data differ (or are missing), so a
+# scheduled run would fail or write files onto the wrong branch.
+if args.require_branch:
+    try:
+        branch = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=PROJECT_FOLDER, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as error:
+        stop_early(f"Could not check the git branch: {error}")
+    if branch != args.require_branch:
+        stop_early(f"Repo is on branch '{branch}', not '{args.require_branch}'.")
+
 # Excel locks CSVs it has open; catch that before spending time downloading.
 if not args.no_process and PROCESS_STEP[1].exists():
     try:
         with open(PROCESS_STEP[1], "a"):
             pass
     except PermissionError:
-        sys.exit(
+        stop_early(
             f"{PROCESS_STEP[1].name} is open in another program (often Excel). "
             "Close it and run the update again."
         )
@@ -249,5 +286,11 @@ if failed:
     print(f"\nFailed: {', '.join(failed)}. Older data were kept for those sources.")
 print(f"\nLog: {log_file}")
 print(f"Status: {STATUS_FILE}")
+
+total_minutes = (datetime.now() - run_started).total_seconds() / 60
+record_history(
+    f"{'FAILED: ' + ', '.join(failed) if failed else 'OK'}  "
+    f"({len(results)} steps, {total_minutes:.1f} min, log {log_file.name})"
+)
 
 sys.exit(1 if failed else 0)
