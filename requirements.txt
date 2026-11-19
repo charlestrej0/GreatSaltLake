@@ -4,3 +4,4 @@ requests
 scikit-learn
 matplotlib
 pysindy
+statsmodels
