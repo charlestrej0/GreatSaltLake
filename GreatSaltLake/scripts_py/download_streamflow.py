@@ -8,9 +8,30 @@ Created on Fri Sep 25 07:52:15 2026
 # download_streamflow.py
 # Downloads daily USGS streamflow for multiple rivers
 
+import time
+
 import requests
 import pandas as pd
 from pathlib import Path
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+
+# USGS sometimes drops connections when requests arrive back to back, so
+# retry each request with increasing waits (5, 10, 20, 40, 80 s) and pause
+# briefly between gauges.
+session = requests.Session()
+session.headers.update({"User-Agent": "GreatSaltLakeResearch/1.0"})
+session.mount(
+    "https://",
+    HTTPAdapter(max_retries=Retry(
+        total=5,
+        backoff_factor=5,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )),
+)
+PAUSE_BETWEEN_SITES_SECONDS = 3
 
 
 # USER INPUT
@@ -70,7 +91,10 @@ for i in range(len(sites)):
         "siteStatus": "all"
     }
 
-    response = requests.get(url, params=params)
+    if i > 0:
+        time.sleep(PAUSE_BETWEEN_SITES_SECONDS)
+
+    response = session.get(url, params=params, timeout=120)
 
     response.raise_for_status()
 
@@ -151,7 +175,7 @@ raw_data_folder = project_folder / "raw_data"
 raw_data_folder.mkdir(exist_ok=True)
 
 # Create the output file path
-output_file = raw_data_folder / "usgs_streamflow_py.csv"
+output_file = raw_data_folder / "usgs_streamflow.csv"
 
 # Save the data
 master.to_csv(
